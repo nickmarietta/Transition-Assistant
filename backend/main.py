@@ -1,0 +1,27 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers import auth, playlist, scoring
+
+app = FastAPI(title="DJ Transition Assistant API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(playlist.router)
+app.include_router(scoring.router)
+
+
+@app.get("/")
+def root():
+    return {"status": "ok"}
