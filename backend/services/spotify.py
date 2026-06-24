@@ -41,17 +41,12 @@ async def get_playlist(playlist_id: str, access_token: str) -> tuple:
         resp.raise_for_status()
         data = resp.json()
 
-        # Newer Spotify apps receive items at the top level (no "tracks" wrapper).
-        # Older format nests them under data["tracks"]["items"].
-        tracks_obj = data.get("tracks") or {}
-        if tracks_obj:
-            raw_items = tracks_obj.get("items") or []
-            total = tracks_obj.get("total", 0)
-            next_url = tracks_obj.get("next")
-        else:
-            raw_items = data.get("items") or []
-            total = data.get("total", len(raw_items))
-            next_url = data.get("next")
+        # Newer Spotify apps: paging object is at data["items"], not data["tracks"].
+        # Within each playlist item, the track is keyed as "item" not "track".
+        tracks_obj = data.get("tracks") or data.get("items") or {}
+        raw_items = tracks_obj.get("items") or []
+        total = tracks_obj.get("total", 0)
+        next_url = tracks_obj.get("next")
 
         info = {
             "id": data.get("id", playlist_id),
@@ -60,7 +55,8 @@ async def get_playlist(playlist_id: str, access_token: str) -> tuple:
         }
 
         for item in raw_items:
-            track = item.get("track") if item else None
+            # New apps use "item" key; old format used "track"
+            track = (item.get("item") or item.get("track")) if item else None
             if track and track.get("id"):
                 tracks.append(track)
 
@@ -75,7 +71,7 @@ async def get_playlist(playlist_id: str, access_token: str) -> tuple:
             page_resp.raise_for_status()
             page = page_resp.json()
             for item in page.get("items") or []:
-                track = item.get("track") if item else None
+                track = (item.get("item") or item.get("track")) if item else None
                 if track and track.get("id"):
                     tracks.append(track)
             next_url = page.get("next")

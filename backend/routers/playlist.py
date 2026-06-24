@@ -47,14 +47,17 @@ async def debug_playlist(
         filtered_data = filtered.json()
 
         top_items = plain_data.get("items")
+        nested = top_items.get("items") if isinstance(top_items, dict) else None
         return {
             "plain": {
                 "status": plain.status_code,
                 "top_level_keys": list(plain_data.keys()),
                 "tracks_present": "tracks" in plain_data,
                 "top_items_type": type(top_items).__name__,
-                "top_items_count": len(top_items) if isinstance(top_items, list) else None,
-                "top_items_first": top_items[0] if isinstance(top_items, list) and top_items else None,
+                "top_items_dict_keys": list(top_items.keys()) if isinstance(top_items, dict) else None,
+                "top_items_total": top_items.get("total") if isinstance(top_items, dict) else None,
+                "nested_items_count": len(nested) if isinstance(nested, list) else None,
+                "nested_first": nested[0] if isinstance(nested, list) and nested else None,
             },
             "with_fields": {
                 "status": filtered.status_code,
