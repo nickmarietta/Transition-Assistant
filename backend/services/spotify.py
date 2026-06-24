@@ -23,44 +23,65 @@ async def exchange_code(
         return resp.json()
 
 
-async def get_playlist_info(playlist_id: str, access_token: str) -> dict:
+async def get_playlist(playlist_id: str, access_token: str) -> tuple:
+    """Fetch playlist metadata and all tracks using only the /playlists/{id} endpoint.
+
+    The /playlists/{id}/tracks sub-endpoint is restricted for newer Spotify apps,
+    but track data is available through the main playlist endpoint's tracks field.
+    Handles pagination by following the tracks.next cursor.
+    """
+    headers = {"Authorization": f"Bearer {access_token}"}
+    tracks = []
+
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{SPOTIFY_API}/playlists/{playlist_id}",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"fields": "id,name,description,images,tracks(total)"},
+            headers=headers,
         )
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
 
+        # Newer Spotify apps receive items at the top level (no "tracks" wrapper).
+        # Older format nests them under data["tracks"]["items"].
+        tracks_obj = data.get("tracks") or {}
+        if tracks_obj:
+            raw_items = tracks_obj.get("items") or []
+            total = tracks_obj.get("total", 0)
+            next_url = tracks_obj.get("next")
+        else:
+            raw_items = data.get("items") or []
+            total = data.get("total", len(raw_items))
+            next_url = data.get("next")
 
-async def get_playlist_tracks(playlist_id: str, access_token: str) -> list[dict]:
-    tracks: list[dict] = []
-    url = f"{SPOTIFY_API}/playlists/{playlist_id}/tracks"  # type: Optional[str]
-    params: dict = {
-        "fields": "items(track(id,name,artists,duration_ms)),next",
-        "limit": 100,
-    }
+        info = {
+            "id": data.get("id", playlist_id),
+            "name": data.get("name", "Unknown Playlist"),
+            "tracks": {"total": total},
+        }
 
-    async with httpx.AsyncClient() as client:
-        while url:
-            resp = await client.get(
-                url,
-                headers={"Authorization": f"Bearer {access_token}"},
-                params=params,
+        for item in raw_items:
+            track = item.get("track") if item else None
+            if track and track.get("id"):
+                tracks.append(track)
+
+        offset = len(tracks)
+        while next_url:
+            page_resp = await client.get(
+                f"{SPOTIFY_API}/playlists/{playlist_id}/tracks?offset={offset}&limit=100",
+                headers=headers,
             )
-            resp.raise_for_status()
-            data = resp.json()
-
-            for item in data.get("items", []):
-                track = item.get("track")
+            if page_resp.status_code == 403:
+                break
+            page_resp.raise_for_status()
+            page = page_resp.json()
+            for item in page.get("items") or []:
+                track = item.get("track") if item else None
                 if track and track.get("id"):
                     tracks.append(track)
+            next_url = page.get("next")
+            offset = len(tracks)
 
-            url = data.get("next")
-            params = {}  # next URL already carries query params
-
-    return tracks
+    return info, tracks
 
 
 async def get_audio_features(track_ids: list[str], access_token: str) -> dict[str, dict]:
