@@ -1,4 +1,4 @@
-import type { PlaylistResponse, SpotifyUser, SuggestResponse, Track } from "./types";
+import type { AudioAnalysis, PlaylistResponse, SpotifyUser, SuggestResponse, Track } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -64,6 +64,13 @@ export async function logout(): Promise<void> {
 
 export async function fetchPlaylist(url: string): Promise<PlaylistResponse> {
   return apiFetch(`/playlist?url=${encodeURIComponent(url)}`);
+}
+
+export async function analyzeTrack(file: File): Promise<AudioAnalysis> {
+  const form = new FormData();
+  form.append("file", file);
+  // No Content-Type header — browser sets multipart/form-data with boundary automatically
+  return apiFetch<AudioAnalysis>("/tracks/analyze", { method: "POST", body: form });
 }
 
 export async function getSuggestions(

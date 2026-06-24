@@ -5,7 +5,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import auth, playlist, scoring
+from routers import auth, playlist, scoring, tracks
 
 app = FastAPI(title="DJ Transition Assistant API")
 
@@ -20,6 +20,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(playlist.router)
 app.include_router(scoring.router)
+app.include_router(tracks.router)
 
 
 @app.get("/")

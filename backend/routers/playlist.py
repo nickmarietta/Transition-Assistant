@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, Query
 
 from routers.auth import get_token
 from services import spotify as spotify_svc
-from services.spotify import SPOTIFY_API
 from scoring import CAMELOT
 
 router = APIRouter(prefix="/playlist", tags=["playlist"])
@@ -18,55 +17,6 @@ def _extract_playlist_id(url: str) -> str:
         raise HTTPException(status_code=400, detail="Could not parse a playlist ID from that URL")
     return match.group(1)
 
-
-@router.get("/debug")
-async def debug_playlist(
-    url: str,
-    session_id: Optional[str] = Query(default=None),
-):
-    """Returns raw Spotify responses both with and without a fields filter."""
-    token = get_token(session_id)
-    playlist_id = _extract_playlist_id(url)
-    headers = {"Authorization": f"Bearer {token}"}
-
-    async with httpx.AsyncClient() as client:
-        # Test 1: no fields filter — get everything Spotify returns
-        plain = await client.get(
-            f"{SPOTIFY_API}/playlists/{playlist_id}",
-            headers=headers,
-        )
-        plain_data = plain.json()
-        tracks_obj = plain_data.get("tracks") or {}
-
-        # Test 2: with fields filter
-        fields = "id,name,tracks.total,tracks.next,tracks.items(track(id,name,artists,duration_ms))"
-        filtered = await client.get(
-            f"{SPOTIFY_API}/playlists/{playlist_id}?fields={fields}",
-            headers=headers,
-        )
-        filtered_data = filtered.json()
-
-        top_items = plain_data.get("items")
-        nested = top_items.get("items") if isinstance(top_items, dict) else None
-        return {
-            "plain": {
-                "status": plain.status_code,
-                "top_level_keys": list(plain_data.keys()),
-                "tracks_present": "tracks" in plain_data,
-                "top_items_type": type(top_items).__name__,
-                "top_items_dict_keys": list(top_items.keys()) if isinstance(top_items, dict) else None,
-                "top_items_total": top_items.get("total") if isinstance(top_items, dict) else None,
-                "nested_items_count": len(nested) if isinstance(nested, list) else None,
-                "nested_first": nested[0] if isinstance(nested, list) and nested else None,
-            },
-            "with_fields": {
-                "status": filtered.status_code,
-                "url": str(filtered.url),
-                "top_level_keys": list(filtered_data.keys()),
-                "tracks_present": "tracks" in filtered_data,
-                "body": filtered_data,
-            },
-        }
 
 
 @router.get("")
@@ -83,6 +33,15 @@ async def get_playlist(
         raise HTTPException(
             status_code=exc.response.status_code,
             detail=f"Spotify error ({exc.response.status_code}): {exc.response.text[:400]}",
+        )
+
+    if not raw_tracks:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "No tracks could be loaded. Spotify's API only allows reading tracks "
+                "from playlists you own. Make sure you're loading one of your own playlists."
+            ),
         )
 
     try:

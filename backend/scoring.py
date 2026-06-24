@@ -73,7 +73,9 @@ def _key_score(camelot_a: str | None, camelot_b: str | None) -> int:
     return 40
 
 
-def _bpm_score(bpm_a: float, bpm_b: float) -> int:
+def _bpm_score(bpm_a: float | None, bpm_b: float | None) -> int:
+    if bpm_a is None or bpm_b is None:
+        return 30
     delta = abs(bpm_a - bpm_b)
     if delta <= 2:
         return 100
@@ -84,7 +86,9 @@ def _bpm_score(bpm_a: float, bpm_b: float) -> int:
     return 30
 
 
-def _energy_score(energy_a: float, energy_b: float) -> tuple[int, bool]:
+def _energy_score(energy_a: float | None, energy_b: float | None) -> tuple[int, bool]:
+    if energy_a is None or energy_b is None:
+        return 40, False
     delta = abs(energy_a - energy_b)
     if delta < 0.1:
         return 100, False

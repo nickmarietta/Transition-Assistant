@@ -36,3 +36,19 @@ export interface ScoreSuggestion {
 export interface SuggestResponse {
   suggestions: ScoreSuggestion[];
 }
+
+export interface Segment {
+  start: number;
+  end: number;
+  label: string | null;
+  energy: number;
+}
+
+export interface AudioAnalysis {
+  bpm: number;
+  key: number;
+  mode: number;
+  energy: number;
+  camelot: string | null;
+  segments: Segment[];
+}

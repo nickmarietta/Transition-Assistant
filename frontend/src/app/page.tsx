@@ -8,6 +8,7 @@ import {
   logout,
   fetchPlaylist,
   getSuggestions,
+  analyzeTrack,
   storeSessionId,
 } from "@/lib/api";
 import type { SpotifyUser, Track, ScoreSuggestion } from "@/lib/types";
@@ -23,11 +24,10 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<ScoreSuggestion[]>([]);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // After OAuth the backend redirects to /?session_id=<uuid>
-    // Extract it, persist it, then clean the URL
     const params = new URLSearchParams(window.location.search);
     const sid = params.get("session_id");
     if (sid) {
@@ -38,9 +38,7 @@ export default function Home() {
     getAuthStatus().then((s) => {
       setLoggedIn(s.logged_in);
       if (s.logged_in) {
-        getProfile()
-          .then(setProfile)
-          .catch(() => null);
+        getProfile().then(setProfile).catch(() => null);
       }
     }).catch(() => setLoggedIn(false));
   }, []);
@@ -73,6 +71,36 @@ export default function Home() {
       setError(e instanceof Error ? e.message : "Failed to score tracks");
     } finally {
       setLoadingSuggestions(false);
+    }
+  }
+
+  async function handleAnalyzeTrack(id: string, file: File) {
+    setAnalyzingIds((prev) => new Set(prev).add(id));
+    setError(null);
+    try {
+      const analysis = await analyzeTrack(file);
+      setTracks((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                bpm: analysis.bpm,
+                key: analysis.key,
+                mode: analysis.mode,
+                energy: analysis.energy,
+                camelot: analysis.camelot,
+              }
+            : t
+        )
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Audio analysis failed");
+    } finally {
+      setAnalyzingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -156,7 +184,9 @@ export default function Home() {
               selectedId={selectedId}
               suggestions={suggestions}
               loadingSuggestions={loadingSuggestions}
+              analyzingIds={analyzingIds}
               onSelectTrack={handleSelectTrack}
+              onAnalyzeTrack={handleAnalyzeTrack}
             />
           )}
         </div>
