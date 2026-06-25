@@ -3,14 +3,15 @@
 import { useRef } from "react";
 import type { Track, ScoreSuggestion } from "@/lib/types";
 import TrackCard from "./TrackCard";
+import CamelotWheel from "./CamelotWheel";
 
 interface Props {
   tracks: Track[];
-  selectedId: string | null;
+  nowPlayingId: string | null;
   suggestions: ScoreSuggestion[];
   loadingSuggestions: boolean;
   analyzingIds: Set<string>;
-  onSelectTrack: (id: string) => void;
+  onSetNowPlaying: (id: string) => void;
   onAnalyzeTrack: (id: string, file: File) => void;
 }
 
@@ -32,13 +33,13 @@ function UploadIcon({ spinning }: { spinning: boolean }) {
 
 function TrackRow({
   track,
-  selected,
+  isNowPlaying,
   analyzing,
   onSelect,
   onAnalyze,
 }: {
   track: Track;
-  selected: boolean;
+  isNowPlaying: boolean;
   analyzing: boolean;
   onSelect: () => void;
   onAnalyze: (file: File) => void;
@@ -50,7 +51,9 @@ function TrackRow({
       <button
         onClick={onSelect}
         className={`flex-1 min-w-0 text-left rounded-lg px-3 py-2 text-sm transition-colors ${
-          selected ? "bg-green-600 text-white" : "bg-zinc-800 hover:bg-zinc-700"
+          isNowPlaying
+            ? "bg-green-600 text-white"
+            : "bg-zinc-800 hover:bg-zinc-700"
         }`}
       >
         <p className="truncate font-medium">{track.name}</p>
@@ -71,7 +74,7 @@ function TrackRow({
       </button>
 
       <button
-        title={analyzing ? "Analyzing…" : "Upload MP3 to analyze BPM & key"}
+        title={analyzing ? "Analyzing…" : track.bpm != null ? "Re-analyze" : "Upload MP3 to analyze BPM & key"}
         disabled={analyzing}
         onClick={() => inputRef.current?.click()}
         className={`shrink-0 rounded p-1.5 transition-colors ${
@@ -102,57 +105,71 @@ function TrackRow({
 
 export default function TrackList({
   tracks,
-  selectedId,
+  nowPlayingId,
   suggestions,
   loadingSuggestions,
   analyzingIds,
-  onSelectTrack,
+  onSetNowPlaying,
   onAnalyzeTrack,
 }: Props) {
+  const nowPlayingTrack = tracks.find((t) => t.id === nowPlayingId) ?? null;
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* ── Candidates ── */}
       <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Playlist — click to set current track
+        <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          Playlist — candidates
         </h2>
-        <p className="mb-2 text-xs text-zinc-500">
-          Use the upload icon to analyze BPM, key, and energy from an MP3.
+        <p className="mb-3 text-xs text-zinc-500">
+          Click a track to set it as Now Playing. Use ↑ to analyze BPM & key.
         </p>
-        <div className="space-y-1 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="space-y-1 max-h-[65vh] overflow-y-auto pr-1">
           {tracks.map((track) => (
             <TrackRow
               key={track.id}
               track={track}
-              selected={selectedId === track.id}
+              isNowPlaying={track.id === nowPlayingId}
               analyzing={analyzingIds.has(track.id)}
-              onSelect={() => onSelectTrack(track.id)}
+              onSelect={() => onSetNowPlaying(track.id)}
               onAnalyze={(file) => onAnalyzeTrack(track.id, file)}
             />
           ))}
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Best next tracks
-        </h2>
-        {!selectedId && (
-          <p className="text-zinc-500 text-sm">
-            Select a track on the left to see suggestions.
-          </p>
-        )}
-        {loadingSuggestions && (
-          <p className="text-zinc-500 text-sm">Scoring…</p>
-        )}
-        {selectedId && !loadingSuggestions && suggestions.length === 0 && (
-          <p className="text-zinc-500 text-sm">
-            No suggestions — try selecting another track.
-          </p>
-        )}
-        <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-          {suggestions.map((s) => (
-            <TrackCard key={s.track.id} suggestion={s} />
-          ))}
+      {/* ── Wheel + Suggestions ── */}
+      <div className="flex flex-col gap-4">
+        <CamelotWheel currentTrack={nowPlayingTrack} suggestions={suggestions} />
+
+        <div>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Best next tracks
+          </h2>
+
+          {!nowPlayingId && (
+            <p className="text-zinc-500 text-sm">
+              Set a Now Playing track to see transition suggestions.
+            </p>
+          )}
+          {loadingSuggestions && (
+            <p className="text-zinc-500 text-sm">Scoring…</p>
+          )}
+          {nowPlayingId && !loadingSuggestions && suggestions.length === 0 && (
+            <p className="text-zinc-500 text-sm">
+              No suggestions yet — try uploading the MP3 to get key & BPM data.
+            </p>
+          )}
+
+          <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+            {suggestions.map((s) => (
+              <TrackCard
+                key={s.track.id}
+                suggestion={s}
+                onSetNowPlaying={onSetNowPlaying}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

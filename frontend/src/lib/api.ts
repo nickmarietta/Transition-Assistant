@@ -66,6 +66,12 @@ export async function fetchPlaylist(url: string): Promise<PlaylistResponse> {
   return apiFetch(`/playlist?url=${encodeURIComponent(url)}`);
 }
 
+export async function fetchDemoPlaylist(): Promise<PlaylistResponse> {
+  const res = await fetch(`${API}/playlist/demo`);
+  if (!res.ok) throw new Error("Failed to load demo playlist");
+  return res.json();
+}
+
 export async function analyzeTrack(file: File): Promise<AudioAnalysis> {
   const form = new FormData();
   form.append("file", file);
