@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { Track } from "@/lib/types";
+import { keyName } from "@/lib/utils";
 
 interface Props {
   track: Track | null;
@@ -29,6 +30,11 @@ export default function NowPlaying({ track, analyzing, onUpload }: Props) {
               {track.camelot ? (
                 <span className="rounded bg-green-900/50 px-2 py-0.5 text-xs font-semibold text-green-300">
                   {track.camelot}
+                  {keyName(track.key, track.mode) && (
+                    <span className="ml-1 font-normal opacity-75">
+                      · {keyName(track.key, track.mode)}
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
@@ -37,7 +43,7 @@ export default function NowPlaying({ track, analyzing, onUpload }: Props) {
               )}
               {track.bpm != null ? (
                 <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
-                  {Math.round(track.bpm)} BPM
+                  {track.bpm.toFixed(1)} BPM
                 </span>
               ) : (
                 <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">

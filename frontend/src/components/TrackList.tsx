@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { Track, ScoreSuggestion } from "@/lib/types";
+import { keyName } from "@/lib/utils";
 import TrackCard from "./TrackCard";
 import CamelotWheel from "./CamelotWheel";
 
@@ -58,12 +59,15 @@ function TrackRow({
       >
         <p className="truncate font-medium">{track.name}</p>
         <p className="truncate text-xs opacity-70">{track.artist}</p>
-        <div className="flex gap-2 mt-0.5">
+        <div className="flex flex-wrap gap-2 mt-0.5">
           {track.camelot && (
             <span className="text-xs opacity-60">{track.camelot}</span>
           )}
+          {keyName(track.key, track.mode) && (
+            <span className="text-xs opacity-50">{keyName(track.key, track.mode)}</span>
+          )}
           {track.bpm != null && (
-            <span className="text-xs opacity-60">{Math.round(track.bpm)} BPM</span>
+            <span className="text-xs opacity-60">{track.bpm.toFixed(1)} BPM</span>
           )}
           {track.energy != null && (
             <span className="text-xs opacity-60">
